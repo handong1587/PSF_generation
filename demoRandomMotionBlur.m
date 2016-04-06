@@ -27,6 +27,8 @@ clear
 clc
 
 do_show = 1;
+% gray or color image
+process_color = 1;
 
 % trajectory curve parameters
 PSFsize = 64;
@@ -43,7 +45,8 @@ lambda = 2048;
 sigmaGauss = 0.05;
 
 % load original image
-y = im2double(imread('imgs/balloons.png'));
+y = im2double(imread('imgs/000215_gray.jpg'));
+img = im2double(imread('imgs/000215.jpg'));
 
 %% Generate Random Motion Trajectory
 TrajCurve = createTrajectory(PSFsize, anxiety, numT, MaxTotalLength, do_show);
@@ -54,14 +57,27 @@ PSFs = createPSFs(TrajCurve, PSFsize,  T , do_show , do_centerAndScale);
 %% Generate the sequence of motion blurred observations
 zeroCol = [];%zeros(size(y,1) , 5);
 paddedImage = [zeroCol];
-for ii = 1 : numel(PSFs)
-    z{ii} = createBlurredRaw(y, PSFs{ii}, lambda, sigmaGauss);
-    figure(), 
-    imshow(z{ii}, []),title(['image having exposure time ', num2str(T(ii))]);
-    imTemp = z{ii}./max(z{ii}(:));
-    imTemp(1 : size(PSFs{ii}, 1), 1 : size(PSFs{ii} , 2)) = PSFs{ii}./max(PSFs{ii}(:));
-    paddedImage=[paddedImage, imTemp, zeroCol];
+
+if process_color == 1
+    for ii = 1 : numel(PSFs)
+        PSF_3 = cat(3, PSFs{ii}, PSFs{ii}, PSFs{ii});
+        z{ii} = createBlurredRawColor(img, PSF_3, lambda, sigmaGauss);
+        figure(), 
+        imshow(z{ii}, []),title(['image having exposure time ', num2str(T(ii))]);
+        imTemp = z{ii}./max(z{ii}(:));
+        imTemp(1 : size(PSF_3, 1), 1 : size(PSF_3 , 2), 1 : size(PSF_3 , 3)) = PSF_3./max(PSF_3(:));
+        paddedImage=[paddedImage, imTemp, zeroCol];
+    end
+else
+    for ii = 1 : numel(PSFs)
+        z{ii} = createBlurredRaw(y, PSFs{ii}, lambda, sigmaGauss);
+        figure(), 
+        imshow(z{ii}, []),title(['image having exposure time ', num2str(T(ii))]);
+        imTemp = z{ii}./max(z{ii}(:));
+        imTemp(1 : size(PSFs{ii}, 1), 1 : size(PSFs{ii} , 2)) = PSFs{ii}./max(PSFs{ii}(:));
+        paddedImage=[paddedImage, imTemp, zeroCol];
+    end
 end
 
 figure(), imshow(paddedImage,[]),title('Sequence of observations, PSFs is shown in the upper left corner');
-% imwrite(paddedImage, 'pdimage.png', 'png');
+imwrite(paddedImage, 'pdimage.jpg', 'jpg');
